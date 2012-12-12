@@ -1,0 +1,56 @@
+<?php
+/**
+ * @file
+ * Prorates membership fees in CiviCRM for fixed term memberships
+ */
+
+/**
+ * Implements hook_civicrm_membershipTypeValues()
+ * 
+ * Will prorate the membership on a monthly step basis. It will also add an
+ * additional year's membership based on the rollover date that is set per membership type.
+ */
+
+function prorated_memberships_civicrm_membershipTypeValues( &$form, &$membershipTypeValues ) {  
+  // Ignore the thank you page.
+  if ($form->getVar('_name') == 'ThankYou') {
+    return;
+  }
+  
+  if (!in_array(get_class($form), array(
+            'CRM_Contribute_Form_Contribution',
+            'CRM_Contribute_Form_Contribution_Main',
+          ))) {
+    return;
+  }
+    
+  foreach ( $membershipTypeValues as &$values) {
+    $results = civicrm_api("MembershipType","get", array('version'=>'3','sequential'=>'1','id'=>$values[id]));
+      
+    // Only fixed term memberships
+    if(($results['is_error'] > 0 ) || $results['values'][0]['period_type'] != 'fixed') { return; }
+    
+    // Starting date as set in Member type
+    $start_month = substr($results['values'][0]['fixed_period_start_day'], 0, strlen($results['values'][0]['fixed_period_start_day']) - 2);
+    
+    // Rollover date
+    $rollover_month = substr($results['values'][0]['fixed_period_rollover_day'], 0, strlen($results['values'][0]['fixed_period_rollover_day']) - 2);
+    
+    $today = getdate();
+    
+    // Calcuate the number of months remaining in the membership period
+    $months = $start_month - $today['mon'];
+    if ($months < 0) { $months = 12 + $months; }
+    $ratio = $months/12;
+    
+    if (($today['mon'] >= $rollover_month) && ($today['mon'] <= $start_month)) {
+      $amount = round($values['minimum_fee'] + $values['minimum_fee'] * $ratio, 2);
+    } else {
+      $amount = round($values['minimum_fee'] * $ratio, 2);
+    }
+    
+    $values['minimum_fee'] = $amount;
+  }  
+}
+
+

@@ -1,0 +1,7 @@
+name = Prorated memberships
+description = Customize membership fees so they're prorated to fixed years.
+package = "CiviCRM"
+version = "6.x-1.x-dev"
+core = "6.x"
+dependencies = CiviCRM
+; Requires CiviCRM 4.x+
